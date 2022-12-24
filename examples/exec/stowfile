@@ -1,0 +1,10 @@
+---
+vars:
+  - BIN=${HOME}/.local/bin
+  - OUT=./target/release
+
+stow:
+  - src: ${OUT}/hello
+    links:
+      - ${BIN}/hello
+

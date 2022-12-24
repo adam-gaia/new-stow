@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+name="nstow-integration-tests"
+tag="$(rg --no-config --only-matching --pcre2 '(?<=version = ")[0-9]+\.[0-9]+\.[0-9](?=")' Cargo.toml)"
+image="${name}:${tag}"
+
+docker build --tag "${image}" .
+
+# Run an infinite loop in the background to keep the container going
+# This way, we can exec in after we run the tests
+docker run --rm --detach --entrypoint '/bin/bash' --name "${name}" "${image}" -c 'while true; do sleep 1; done'
+
+# Run our tests in the container
+if ! docker exec -it "${name}" integration-tests; then
+  # If tests fail, enter an interactive shell
+  echo ''
+  echo "> Entering container for inspection"
+  docker exec -it "${name}" /bin/bash 
+fi
+
+# Stop and remove the container
+docker kill "${name}"
+

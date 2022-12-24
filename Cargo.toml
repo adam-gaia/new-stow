@@ -1,0 +1,28 @@
+[package]
+name = "new-stow"
+description = "Symlink farm manager with links defined in a stowfile"
+version = "0.1.0"
+edition = "2021"
+authors = ["Adam Gaia"]
+homepage = "https://github.com/adam-gaia/new-stow"
+repository = "https://github.com/adam-gaia/new-stow"
+documentation = "https://github.com/adam-gaia/new-stow"
+license = "MIT"
+keywords = ["nstow", "stow", "symlink", "stowfile"]
+
+[[bin]]
+name = "nstow"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.65"
+clap = { version = "4.0.15", features = ["derive"] }
+clap-verbosity-flag = "2.0.0"
+directories-next = "2.0.0"
+env_logger = "0.9.1"
+lazy_static = "1.4.0"
+log = "0.4.17"
+regex = "1.7.0"
+serde = { version = "1.0.151", features = ["derive"] }
+serde_yaml = "0.9.16"
+

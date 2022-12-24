@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+EXAMPLES_DIR="${PWD}/examples"
+RED="$(tput setf 4)"
+GREEN="$(tput setf 2)"
+NO_COLOR="$(tput setf 7)"
+
+function status() {
+  local indent=''
+  local char='>'
+  case "$1" in
+    1)
+      shift
+      indent="  "
+      char='-'
+      ;;
+    2)
+      shift
+      indent="    "
+      char='-'
+      ;;
+  esac
+  printf "${indent}${char} %s\n" "$*" >&2
+}
+
+function load_vars() {
+  local stowfile="$1"
+  status 1 "Loading vars to env"
+  local vars=($(yq -re '.vars[]' ${stowfile} 2>/dev/null))
+  for var in "${vars[@]}"; do
+    status 2 "Found var: ${var}"
+    eval "export ${var}"
+  done
+}
+
+function get_symlinks() {
+  local stowfile="$1"
+  status 1 "Reading links"
+  local links=($(yq -re '.. |."links"? | select(. != null)' ${stowfile} 2>/dev/null))
+  for link in "${links[@]}"; do
+    # Globbing is messed up. Every other value is just a '-'. Quickest way to fix is just to skip those
+    if [[ "${link}" == '-' ]]; then
+      continue
+    fi
+    echo "${link}"
+  done
+}
+
+function pretty_format_path() {
+  local path="$1"
+  echo "${path/${HOME}/\~}"
+}
+
+function check_file() {
+  local message="${1}"
+  shift
+  local fail_condition="${1}"
+  shift
+  local return_code=0
+  while (( "$#" )); do
+    local link="$(eval "echo ${1}")"
+    local outcome="${GREEN}PASS${NO_COLOR}" 
+    eval "if [[ ${fail_condition} ${link} ]]; then outcome="${RED}FAIL${NO_COLOR}"; return_code=1; fi"
+    status 2 "[${outcome}] $(pretty_format_path "${link}") ${message}"
+    shift # Move to next arg
+  done
+  return "${return_code}"
+}
+
+function nstow() {
+  status 1 "Running command 'nstow ${*}'"
+  if ! command nstow "${@}" >&2; then
+    status 2 "Command failed"
+  fi
+}
+
+function test_stowfile() {
+  local stowfile="$1"
+  local stowfile_dir="$(dirname "${stowfile}")"
+ 
+  status "Testing nstow with ${stowfile}"
+
+  load_vars "${stowfile}"
+  local links="$(get_symlinks "${stowfile}")" &>/dev/null
+
+  nstow --dry-run --dir "${stowfile_dir}" --unstow
+  check_file "should not exist" "-e" ${links[@]}
+
+  nstow --dir "${stowfile_dir}"
+  check_file "should exist and be a symlink" "! -L" ${links[@]}
+
+  nstow --dir "${stowfile_dir}" --restow
+  check_file "exists and is a symlink" "! -L" ${links[@]}
+
+  nstow --dir "${stowfile_dir}" --unstow
+  check_file "does not exist" "-e" ${links[@]}
+}
+
+# Clean home directory
+find "${HOME}" -maxdepth 1 -name '.*' | xargs rm -r
+
+# Run tests on all examples
+find "${EXAMPLES_DIR}" -name stowfile | while read -r stowfile; do
+  test_stowfile "${stowfile}"
+done
+status "All tests pass"
+

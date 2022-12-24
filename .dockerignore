@@ -1,0 +1,7 @@
+.git
+target
+result
+flake.*
+*.md
+Dockerfile
+.direnv

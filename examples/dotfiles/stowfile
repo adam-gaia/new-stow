@@ -1,0 +1,21 @@
+---
+vars:
+
+stow:
+  - src: alacritty.yml
+    links:
+      - "${XDG_CONFIG_HOME}/alacritty/alacritty.yaml"
+
+  - bash:
+      - src: bashrc
+        links:
+          - "${HOME}/.bashrc"
+
+      - src: bash_profile
+        links:
+          - "${HOME}/.bash_profile"
+
+  - src: readline-inputrc
+    links:
+      - "${HOME}/.inputrc"
+
