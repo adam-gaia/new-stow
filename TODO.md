@@ -5,3 +5,4 @@
 - go through and clean up compile warnings
 - unit tests
 - Cleanup pass. Unwraps, etc
+- spell check README

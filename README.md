@@ -6,7 +6,7 @@ New Stow (or `nstow`) is a symlink farm manager that aims to superset[^1] GNU St
 
 ## Install
 
-The package `new-stow` provies a binary nammed `nstow`.
+The package `new-stow` provies a binary named `nstow`.
 
 ### Cargo
 
