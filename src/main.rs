@@ -120,8 +120,10 @@ fn check_for_default_stowfile(working_dir: &Path) -> Option<PathBuf> {
     for name in DEFAULT_STOWFILE_NAMES {
         let mut stowfile = working_dir.to_path_buf();
         stowfile.push(name);
-        if stowfile.try_exists().is_ok() {
-            return Some(stowfile);
+        if let Ok(exists) = stowfile.try_exists() {
+            if exists {
+                return Some(stowfile);
+            }
         }
     }
     None
