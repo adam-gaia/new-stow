@@ -1,7 +1,7 @@
 [package]
 name = "new-stow"
 description = "Symlink farm manager with links defined in a stowfile"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Adam Gaia"]
 homepage = "https://github.com/adam-gaia/new-stow"
