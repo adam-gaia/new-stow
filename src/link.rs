@@ -111,6 +111,8 @@ impl<'a> Link<'a> {
                 FileType::Symlink(points_to) => {
                     if files_are_the_same(&self.src, &points_to).unwrap() {
                         info!("{:?} is already linked to {:?}", self.src, self.target.path);
+                        // No need to continue and create the link
+                        return Ok(());
                     } else {
                         warn!(
                             "Target is symlinked to {:?}, a different file than the defined source",
