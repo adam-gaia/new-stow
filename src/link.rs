@@ -196,9 +196,12 @@ impl<'a> Link<'a> {
                 }
                 FileType::Symlink(points_to) => {
                     if files_are_the_same(&self.src, &points_to).unwrap() {
-                        info!("Target points to ");
+                        info!("{:?} -> {:?}", self.src, self.target.path);
                     } else {
-                        warn!("{:?} -> {:?}", self.src, self.target.path);
+                        warn!(
+                            "Target is symlinked to {:?}, a different file than the defined source",
+                            self.target.path.canonicalize()
+                        );
                     }
                 }
                 FileType::BrokenSymlink => {
