@@ -261,10 +261,18 @@ impl<'a> Stow<'a> {
     pub fn restow(&self) -> Result<()> {
         trace!("Iterating over links for restowing: {:#?}", &self.links);
         for link in &self.links {
-            // Ignore any unlinking errors
+            // TODO: Ignore any unlinking errors if linking will cover up the issue
             link.unlink()?;
             link.link()?;
             // TODO: when running with --dry-run do not let link() write a warining when a link exists. unlink() would have taken care of that
+        }
+        Ok(())
+    }
+
+    pub fn status(&self) -> Result<()> {
+        trace!("Iterating over links for status: {:#?}", &self.links);
+        for link in &self.links {
+            link.status()?;
         }
         Ok(())
     }

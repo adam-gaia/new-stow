@@ -30,7 +30,7 @@ const DEFAULT_STOWFILE_NAMES: &'static [&'static str] = &[
 #[command(group(
             ArgGroup::new("action")
                 .required(false)
-                .args(["stow", "unstow", "delete", "restow"]),
+                .args(["stow", "unstow", "delete", "restow", "status"]),
         ))]
 #[command(group(
             ArgGroup::new("test")
@@ -42,7 +42,7 @@ struct Args {
     verbose: Verbosity<InfoLevel>,
 
     /// Sets a custom stowfilefile
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     stowfile: Option<PathBuf>,
 
     /// Sets the working directory to "DIR" instead of the current directory.
@@ -82,6 +82,10 @@ struct Args {
     /// Shortcut for 'nstow --unstow && nstow --stow'
     #[arg(short = 'R', long)]
     restow: bool,
+
+    /// Show the status of links in the stowfile.
+    #[arg(long, short)]
+    status: bool,
 
     /// Ignore source files that match this regex.
     /// This flag may be passed multiple times and combined with '--only'.
@@ -181,11 +185,17 @@ fn main() -> Result<()> {
     let settings = Settings::new(stowfile_path, working_dir, dry_run, args.backup, filters);
     let app = Stow::with_settings(&settings)?;
 
-    match (args.stow, args.unstow || args.delete, args.restow) {
-        (false, false, false) => app.stow()?,
-        (true, false, false) => app.stow()?,
-        (false, true, false) => app.unstow()?,
-        (false, false, true) => app.restow()?,
+    match (
+        args.stow,
+        args.unstow || args.delete,
+        args.restow,
+        args.status,
+    ) {
+        (false, false, false, false) => app.stow()?,
+        (true, false, false, false) => app.stow()?,
+        (false, true, false, false) => app.unstow()?,
+        (false, false, true, false) => app.restow()?,
+        (false, false, false, true) => app.status()?,
         _ => {
             bail!("Only one action may be specified");
         }

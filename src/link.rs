@@ -1,9 +1,8 @@
 use crate::settings::LinkSettings;
 use anyhow::{bail, Result};
-use log::{error, info, warn};
+use log::{debug, error, info, trace, warn, Level};
 use std::{
     fs::{self, Metadata},
-    io,
     path::{Path, PathBuf},
 };
 
@@ -183,6 +182,36 @@ impl<'a> Link<'a> {
                 );
             }
         }
+        Ok(())
+    }
+
+    pub fn status(&self) -> Result<()> {
+        if let Some(target_file_type) = self.target.file_type()? {
+            match target_file_type {
+                FileType::Dir => {
+                    warn!("Target {:?} is a conflicting directory", self.target.path);
+                }
+                FileType::File => {
+                    warn!("Target {:?} is a conflicting file", self.target.path);
+                }
+                FileType::Symlink(points_to) => {
+                    if files_are_the_same(&self.src, &points_to).unwrap() {
+                        info!("Target points to ");
+                    } else {
+                        warn!("{:?} -> {:?}", self.src, self.target.path);
+                    }
+                }
+                FileType::BrokenSymlink => {
+                    warn!("Target is a broken symlink");
+                }
+                FileType::Other(_) => {
+                    warn!("Target is a conflicting file of an un-handable type")
+                }
+            }
+        } else {
+            info!("Source file {:?} is unlinked", self.src)
+        };
+
         Ok(())
     }
 }
