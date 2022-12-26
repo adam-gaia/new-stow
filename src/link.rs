@@ -109,7 +109,15 @@ impl<'a> Link<'a> {
                     todo!()
                 }
                 FileType::Symlink(points_to) => {
-                    todo!()
+                    if files_are_the_same(&self.src, &points_to).unwrap() {
+                        info!("{:?} is already linked to {:?}", self.src, self.target.path);
+                    } else {
+                        warn!(
+                            "Target is symlinked to {:?}, a different file than the defined source",
+                            self.target.path.canonicalize()
+                        );
+                        todo!();
+                    }
                 }
                 FileType::BrokenSymlink => {
                     if dry_run {
