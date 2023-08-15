@@ -1,0 +1,12 @@
+---
+stow:
+  - alacritty:
+    - src: alacritty.yml
+      links:
+        - "${HOME}/.config/alacritty/alacritty.yml"
+
+  - sway:
+    - src: config
+      links:
+        - "${HOME}/.config/sway/config"
+ 

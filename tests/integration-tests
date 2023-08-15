@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2068
 set -Eeuo pipefail
 
 EXAMPLES_DIR="${PWD}/examples"
@@ -6,103 +7,156 @@ RED="$(tput setf 4)"
 GREEN="$(tput setf 2)"
 NO_COLOR="$(tput setf 7)"
 
+if [[ -z ${DEBUG+x} ]]; then
+	# Debugging disabled, do not display nstow command output
+	REDIRECTION="&>/dev/null"
+else
+	# Debugging enabled, display nstow command output
+	REDIRECTION="2>&1"
+fi
+
 function status() {
-  local indent=''
-  local char='>'
-  case "$1" in
-    1)
-      shift
-      indent="  "
-      char='-'
-      ;;
-    2)
-      shift
-      indent="    "
-      char='-'
-      ;;
-  esac
-  printf "${indent}${char} %s\n" "$*" >&2
+	local indent=''
+	local char='>'
+	case "$1" in
+	1)
+		shift
+		indent="  "
+		char='-'
+		;;
+	2)
+		shift
+		indent="    "
+		char='-'
+		;;
+	esac
+	printf "${indent}${char} %s\n" "$*" >&2
+}
+
+function debug_log() {
+	if [[ -n ${DEBUG+x} ]]; then
+		echo ''
+		echo "[DEBUG] ${*}" >&2
+		echo ''
+	fi
 }
 
 function load_vars() {
-  local stowfile="$1"
-  status 1 "Loading vars to env"
-  local vars=($(yq -re '.vars[]' ${stowfile} 2>/dev/null))
-  for var in "${vars[@]}"; do
-    status 2 "Found var: ${var}"
-    eval "export ${var}"
-  done
+	local stowfile="$1"
+	status 1 "Loading vars to env"
+	local vars=($(yq -re '.vars[]' "${stowfile}" 2>/dev/null))
+	for var in "${vars[@]}"; do
+		status 2 "Found var: ${var}"
+		eval "export ${var}"
+	done
 }
 
 function get_symlinks() {
-  local stowfile="$1"
-  status 1 "Reading links"
-  local links=($(yq -re '.. |."links"? | select(. != null)' ${stowfile} 2>/dev/null))
-  for link in "${links[@]}"; do
-    # Globbing is messed up. Every other value is just a '-'. Quickest way to fix is just to skip those
-    if [[ "${link}" == '-' ]]; then
-      continue
-    fi
-    echo "${link}"
-  done
+	local stowfile="$1"
+	status 1 "Reading links"
+	local links=($(yq -re '.. |."links"? | select(. != null)' "${stowfile}" 2>/dev/null))
+	for link in "${links[@]}"; do
+		# Globbing is messed up. Every other value is just a '-'. Quickest way to fix is just to skip those
+		if [[ "${link}" == '-' ]]; then
+			continue
+		fi
+		echo "${link}"
+	done
 }
 
 function pretty_format_path() {
-  local path="$1"
-  echo "${path/${HOME}/\~}"
+	local path="$1"
+	echo "${path/${HOME}/\~}"
+}
+
+function do_check() {
+	local test_expression="$1"
+	local message="$2"
+
+	local return_code=1
+	local outcome="${RED}FAIL${NO_COLOR}"
+
+	#debug_log "Running test: >> ${test_expression} <<"
+	eval "if ${test_expression}; then outcome=${GREEN}PASS${NO_COLOR}; return_code=0; fi"
+
+	status 2 "[${outcome}] ${message}"
+	return "${return_code}"
 }
 
 function check_file() {
-  local message="${1}"
-  shift
-  local fail_condition="${1}"
-  shift
-  local return_code=0
-  while (( "$#" )); do
-    local link="$(eval "echo ${1}")"
-    local outcome="${GREEN}PASS${NO_COLOR}" 
-    eval "if [[ ${fail_condition} ${link} ]]; then outcome="${RED}FAIL${NO_COLOR}"; return_code=1; fi"
-    status 2 "[${outcome}] $(pretty_format_path "${link}") ${message}"
-    shift # Move to next arg
-  done
-  return "${return_code}"
+	local message="${1}"
+	shift
+	local fail_condition="${1}"
+	shift
+	local return_code=0
+	while (("$#")); do
+		local link="${1}"
+
+		local message
+		message="$(pretty_format_path "${link}")"
+
+		local expression="test ${fail_condition} ${link}"
+		if ! do_check "${expression}" "${message}"; then
+			return_code=1
+		fi
+
+		shift # Move to next arg
+	done
+	return "${return_code}"
 }
 
-function nstow() {
-  status 1 "Running command 'nstow ${*}'"
-  if ! command nstow "${@}" >&2; then
-    status 2 "Command failed"
-  fi
+function assert_fail() {
+	local args="$*"
+	local return_code=1
+	status 1 "Running command '${args}'"
+
+	if do_check "! command ${args} ${REDIRECTION}" "Command should fail"; then
+		return_code=0
+	fi
+
+	return "${return_code}"
+}
+
+function assert_success() {
+	local args="$*"
+	local return_code=0
+	status 1 "Running command '${args}'"
+
+	if ! do_check "command ${args} ${REDIRECTION}" "Command should succeed"; then
+		return_code=1
+	fi
+
+	return "${return_code}"
 }
 
 function test_stowfile() {
-  local stowfile="$1"
-  local stowfile_dir="$(dirname "${stowfile}")"
- 
-  status "Testing nstow with ${stowfile}"
+	local stowfile="$1"
+	local stowfile_dir
+	stowfile_dir="$(dirname "${stowfile}")"
 
-  load_vars "${stowfile}"
-  local links="$(get_symlinks "${stowfile}")" &>/dev/null
+	status "Testing nstow with ${stowfile}"
 
-  nstow --dry-run --dir "${stowfile_dir}" --unstow
-  check_file "should not exist" "-e" ${links[@]}
+	load_vars "${stowfile}"
+	local links
+	links="$(get_symlinks "${stowfile}")" &>/dev/null
 
-  nstow --dir "${stowfile_dir}"
-  check_file "should exist and be a symlink" "! -L" ${links[@]}
+	assert_fail nstow -v --dry-run --dir "${stowfile_dir}" --unstow
+	check_file "should not exist" "! -e" ${links[@]}
 
-  nstow --dir "${stowfile_dir}" --restow
-  check_file "exists and is a symlink" "! -L" ${links[@]}
+	assert_success nstow -v --dir "${stowfile_dir}"
+	check_file "should exist and be a symlink" "-L" ${links[@]}
 
-  nstow --dir "${stowfile_dir}" --unstow
-  check_file "does not exist" "-e" ${links[@]}
+	assert_success nstow -v --dir "${stowfile_dir}" --restow
+	check_file "should exist and be a symlink" "-L" ${links[@]}
+
+	assert_success nstow -v --dir "${stowfile_dir}" --unstow
+	check_file "does not exist" "! -e" ${links[@]}
 }
 
-# Clean home directory
-find "${HOME}" -maxdepth 1 -name '.*' | xargs rm -r
-
-# Run tests on all examples
+# Run tests on all stowfiles in the examples dir
 find "${EXAMPLES_DIR}" -name stowfile | while read -r stowfile; do
-  test_stowfile "${stowfile}"
+	# Remove dotfiles from home directory before running test
+	find "${HOME}" -maxdepth 1 -name '.*' -print0 | xargs -0 rm -r
+	test_stowfile "${stowfile}"
 done
 status "All tests pass"
-

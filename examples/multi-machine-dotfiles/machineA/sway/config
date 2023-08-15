@@ -1,0 +1,5 @@
+set $mod Mod4
+set $left h
+set $down j
+set $up k
+set $right l

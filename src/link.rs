@@ -73,9 +73,7 @@ impl Target {
 }
 
 fn files_are_the_same(a: &Path, b: &Path) -> Result<bool> {
-    a.canonicalize()?;
-    b.canonicalize()?;
-    Ok(a == b)
+    Ok(a.canonicalize()? == b.canonicalize()?)
 }
 
 #[derive(Debug)]
@@ -168,6 +166,11 @@ impl<'a> Link<'a> {
                 FileType::Symlink(points_to) => {
                     // TODO: dont unwrap
                     if !files_are_the_same(&self.src, &points_to).unwrap() {
+                        debug!(
+                            "\n{}\n{}",
+                            self.src.canonicalize()?.display(),
+                            points_to.canonicalize()?.display()
+                        );
                         bail!("Target points to something other than source. Source: {:?}, target: {:?}, target points to: {:?}", &self.target.path, self.src, points_to);
                     }
                     if dry_run {
