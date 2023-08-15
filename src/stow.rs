@@ -11,6 +11,41 @@ use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone)]
+struct SmartPopPathBuf {
+    pretend_path: Vec<String>,
+}
+impl SmartPopPathBuf {
+    pub fn new() -> Self {
+        SmartPopPathBuf {
+            pretend_path: Vec::new(),
+        }
+    }
+
+    pub fn from_path(p: &Path) -> Self {
+        SmartPopPathBuf {
+            pretend_path: vec![p.to_str().unwrap().to_string()],
+        }
+    }
+
+    pub fn push(&mut self, path: &str) {
+        self.pretend_path.push(path.to_string());
+    }
+
+    pub fn pop(&mut self) {
+        self.pretend_path.pop();
+    }
+
+    pub fn to_path_buf(&self) -> PathBuf {
+        let string_repr = self.pretend_path.join("/");
+        PathBuf::from(string_repr)
+    }
+
+    pub fn to_string(&self) -> String {
+        self.pretend_path.join("/")
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct StowfileContents {
     vars: Option<Vec<String>>,
@@ -60,7 +95,7 @@ impl<'a> Stowfile<'a> {
     fn traverse_sequence(
         &mut self,
         stowables: &serde_yaml::Sequence,
-        current_src_path: &mut PathBuf,
+        current_src_path: &mut SmartPopPathBuf,
     ) -> Result<Vec<Link<'a>>> {
         let mut collected_links = Vec::new();
         for stowable in stowables {
@@ -87,10 +122,8 @@ impl<'a> Stowfile<'a> {
                             bail!("Malformatted stowfile");
                         }
 
-                        let processed_src = var_replacement(
-                            current_src_path.to_str().unwrap(),
-                            &mut self.variables,
-                        )?;
+                        let processed_src =
+                            var_replacement(&current_src_path.to_string(), &mut self.variables)?;
                         if !self.filters.check_src(&processed_src) {
                             continue;
                         }
@@ -121,7 +154,7 @@ impl<'a> Stowfile<'a> {
     fn traverse_value(
         &mut self,
         current_value: &serde_yaml::Value,
-        current_src_path: &mut PathBuf,
+        current_src_path: &mut SmartPopPathBuf,
     ) -> Result<Vec<Link<'a>>> {
         trace!("Current serde_yaml::Value: {:?}", current_value);
         let collected_links = if current_value.is_mapping() {
@@ -134,7 +167,7 @@ impl<'a> Stowfile<'a> {
         Ok(collected_links)
     }
 
-    pub fn get_links(&mut self, mut current_src_path: PathBuf) -> Result<Vec<Link<'a>>> {
+    pub fn get_links(&mut self, mut current_src_path: SmartPopPathBuf) -> Result<Vec<Link<'a>>> {
         let stows = self.stows.clone(); // TODO: instead of dealing with the borrow-checker I just
                                         // cloned. Not a huge performace hit, but still should be
                                         // fixed later
@@ -145,7 +178,7 @@ impl<'a> Stowfile<'a> {
     fn traverse_mapping(
         &mut self,
         current_node: &serde_yaml::Mapping,
-        current_src_path: &mut PathBuf,
+        current_src_path: &mut SmartPopPathBuf,
     ) -> Result<Vec<Link<'a>>> {
         trace!("Current Mapping: {:?}", current_node);
         let mut collected_links = Vec::new();
@@ -238,7 +271,8 @@ impl<'a> Stow<'a> {
             settings.filters(),
             settings.link_settings(),
         )?;
-        let links = stowfile.get_links(settings.current_working_dir().to_path_buf())?;
+        let links =
+            stowfile.get_links(SmartPopPathBuf::from_path(settings.current_working_dir()))?;
         Ok(Stow { links, settings })
     }
 

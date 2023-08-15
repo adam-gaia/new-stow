@@ -1,0 +1,18 @@
+---
+vars:
+
+stow:
+  # The source files are intentionally ordered `b, c, a` (rather than `a, b, c`) to test that the order doesn't matter.
+  # A previous version of nstow had a bug that caused the order of nesting to matter.
+  - src: nest1/b.config
+    links:
+      - "${HOME}/b.config"
+
+  - src: a.config
+    links:
+      - "${HOME}/a.config"
+
+  - src: nest1/nest2/c.config
+    links:
+      - "${HOME}/c.config"
+

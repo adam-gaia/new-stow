@@ -13,12 +13,11 @@ docker run --rm --detach --entrypoint '/bin/bash' --name "${name}" "${image}" -c
 
 # Run our tests in the container
 if ! docker exec -it "${name}" integration-tests; then
-  # If tests fail, enter an interactive shell
-  echo ''
-  echo "> Entering container for inspection"
-  docker exec -it "${name}" /bin/bash 
+	# If tests fail, enter an interactive shell
+	echo ''
+	echo "> Entering container for inspection"
+	docker exec -it "${name}" /bin/bash
 fi
 
 # Stop and remove the container
-docker kill "${name}"
-
+docker kill "${name}" &>/dev/null
