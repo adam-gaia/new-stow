@@ -1,7 +1,7 @@
 # Leveraging the pre-built Docker images with 
 # cargo-chef and the Rust toolchain
 # Taken from https://www.lpalmieri.com/posts/fast-rust-docker-builds/
-FROM lukemathwalker/cargo-chef:0.1.50-rust-1.66-bullseye AS chef
+FROM lukemathwalker/cargo-chef:0.1.51-rust-1.66-bullseye AS chef
 ENV WORKING_DIR /usr/src/nstow
 WORKDIR "${WORKING_DIR}"
 
