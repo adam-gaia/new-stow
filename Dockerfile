@@ -18,7 +18,7 @@ COPY . .
 RUN cargo build --release --bin nstow
 
 # We do not need the Rust toolchain to run the binary!
-FROM debian:11-slim AS runtime
+FROM debian:12-slim AS runtime
 
 RUN apt-get update \
   && apt-get install --yes \
